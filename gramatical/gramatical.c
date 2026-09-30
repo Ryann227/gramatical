@@ -6,6 +6,7 @@ int main() {
     printf("teste 2 ");
     printf("teste 3 ");
     printf("teste na maquina do senac rapaziada");
+    printf("teste 5");
 
     return 0;
 }
