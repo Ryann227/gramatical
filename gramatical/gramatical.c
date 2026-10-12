@@ -1,82 +1,93 @@
 #include <stdio.h>
 #include <allegro5/allegro.h>
-#include <allegro5/allegro_primitives.h> // Essencial para desenhar formas geométricas
+#include <allegro5/allegro_primitives.h>
+#include "input.h" // Inclui o nosso módulo de teclado separado
 
 #define LARGURA_TELA 800
 #define ALTURA_TELA 600
 
 int main() {
-    // 1. Inicializar o Allegro
+    // 1. Inicializar o Allegro e os complementos necessários
     if (!al_init()) {
         fprintf(stderr, "Falha ao inicializar o Allegro!\n");
         return -1;
     }
 
-    // 2. Inicializar o add-on de primitivas (necessário para desenhar o círculo)
-    if (!al_init_primitives_addon()) {
-        fprintf(stderr, "Falha ao inicializar o add-on de primitivas!\n");
-        return -1;
-    }
-
-    // 3. Instalar o teclado (para permitir sair com a tecla ESC)
     if (!al_install_keyboard()) {
         fprintf(stderr, "Falha ao instalar o teclado!\n");
         return -1;
     }
 
-    // 4. Criar a Janela (Display)
+    if (!al_init_primitives_addon()) {
+        fprintf(stderr, "Falha ao inicializar as primitivas!\n");
+        return -1;
+    }
+
+    // 2. Criar Janela, Fila de Eventos e Temporizador (60 FPS)
     ALLEGRO_DISPLAY* display = al_create_display(LARGURA_TELA, ALTURA_TELA);
     if (!display) {
         fprintf(stderr, "Falha ao criar a janela!\n");
         return -1;
     }
-    al_set_window_title(display, "Gramatical Tower - POC (Circulo)");
+    al_set_window_title(display, "Gramatical Tower - POC (Modularizado)");
 
-    // 5. Criar a Fila de Eventos
     ALLEGRO_EVENT_QUEUE* fila_eventos = al_create_event_queue();
-    if (!fila_eventos) {
-        fprintf(stderr, "Falha ao criar a fila de eventos!\n");
-        al_destroy_display(display);
-        return -1;
-    }
+    ALLEGRO_TIMER* timer = al_create_timer(1.0 / 60.0);
 
     al_register_event_source(fila_eventos, al_get_display_event_source(display));
     al_register_event_source(fila_eventos, al_get_keyboard_event_source());
+    al_register_event_source(fila_eventos, al_get_timer_event_source(timer));
 
-    int rodando = 1;
+    al_start_timer(timer);
 
-    // 6. O Game Loop
+    // 3. Posição inicial do círculo e estrutura de controlos
+    float x = LARGURA_TELA / 2.0f;
+    float y = ALTURA_TELA / 2.0f;
+    float raio = 20.0f;
+    float velocidade = 5.0f;
+
+    Controles controles = { 0 }; // Inicializa todos os estados a falso
+    bool rodando = true;
+    bool redesenhar = true;
+
+    // 4. Loop Principal do Jogo
     while (rodando) {
-        // Tratar eventos (teclado e fechar janela)
-        while (!al_is_event_queue_empty(fila_eventos)) {
-            ALLEGRO_EVENT evento;
-            al_wait_for_event(fila_eventos, &evento);
+        ALLEGRO_EVENT evento;
+        al_wait_for_event(fila_eventos, &evento);
 
-            if (evento.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
-                rodando = 0;
-            }
-            else if (evento.type == ALLEGRO_EVENT_KEY_DOWN) {
-                if (evento.keyboard.keycode == ALLEGRO_KEY_ESCAPE) {
-                    rodando = 0;
-                }
+        if (evento.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
+            rodando = false;
+        }
+        else if (evento.type == ALLEGRO_EVENT_TIMER) {
+            // Atualizar a posição do círculo com base nas teclas ativas do módulo input
+            if (controles.cima) y -= velocidade;
+            if (controles.baixo) y += velocidade;
+            if (controles.esquerda) x -= velocidade;
+            if (controles.direita) x += velocidade;
+
+            redesenhar = true;
+        }
+        else {
+            // Envia os eventos de teclado para a nossa função separada em input.c
+            processar_teclado(&evento, &controles);
+            if (controles.sair) {
+                rodando = false;
             }
         }
 
-        // --- RENDERIZAÇÃO ---
-        // Limpa o ecrã com uma cor de fundo (ex: azul escuro)
-        al_clear_to_color(al_map_rgb(20, 30, 50));
+        // Renderização gráfica
+        if (redesenhar && al_is_event_queue_empty(fila_eventos)) {
+            redesenhar = false;
 
-        // Desenhar um círculo colorido preenchido no centro da tela (X=400, Y=300, Raio=50)
-        al_draw_filled_circle(400, 300, 50, al_map_rgb(0, 255, 128));
+            al_clear_to_color(al_map_rgb(20, 20, 30)); // Fundo escuro
+            al_draw_filled_circle(x, y, raio, al_map_rgb(255, 100, 100)); // Círculo
 
-        // Atualiza a tela (Double Buffering)
-        al_flip_display();
-
-        // Pequena pausa para economizar processamento (~60 FPS)
-        al_rest(0.016);
+            al_flip_display();
+        }
     }
 
-    // 7. Destruir recursos antes de fechar
+    // 5. Libertar memória antes de fechar
+    al_destroy_timer(timer);
     al_destroy_event_queue(fila_eventos);
     al_destroy_display(display);
 
