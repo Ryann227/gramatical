@@ -1,10 +1,15 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <allegro5/allegro.h>
 #include <allegro5/allegro_primitives.h>
+#include <allegro5/allegro_image.h>   // NOVO: necessario para carregar o menu.png
+#include <allegro5/allegro_font.h>    // NOVO: necessario para escrever o texto do botao
+#include <allegro5/allegro_ttf.h>     // NOVO: necessario para a fonte do botao
 #include "input.h" // Inclui o nosso módulo de teclado separado
+#include "menu.h"  // NOVO: modulo do menu
 
-#define LARGURA_TELA 800
-#define ALTURA_TELA 600
+#define LARGURA_TELA 1280   // Alterado para combinar com a proporcao da imagem do menu
+#define ALTURA_TELA 720
 
 int main() {
     // 1. Inicializar o Allegro e os complementos necessários
@@ -18,12 +23,24 @@ int main() {
         return -1;
     }
 
+    // NOVO: o menu usa o mouse para clicar no botao Jogar
+    if (!al_install_mouse()) {
+        fprintf(stderr, "Falha ao instalar o mouse!\n");
+        return -1;
+    }
+
     if (!al_init_primitives_addon()) {
         fprintf(stderr, "Falha ao inicializar as primitivas!\n");
         return -1;
     }
 
-    // 2. Criar Janela, Fila de Eventos e Temporizador (60 FPS)
+    // NOVO: addons usados pelo menu (imagem e texto)
+    if (!al_init_image_addon() || !al_init_font_addon() || !al_init_ttf_addon()) {
+        fprintf(stderr, "Falha ao inicializar imagem/fonte!\n");
+        return -1;
+    }
+
+    // 2. Criar Janela
     ALLEGRO_DISPLAY* display = al_create_display(LARGURA_TELA, ALTURA_TELA);
     if (!display) {
         fprintf(stderr, "Falha ao criar a janela!\n");
@@ -31,6 +48,13 @@ int main() {
     }
     al_set_window_title(display, "Gramatical Tower - POC (Modularizado)");
 
+    // NOVO: mostra o menu ANTES do jogo. So continua se o jogador clicar em Jogar.
+    if (!menu_executar(display)) {
+        al_destroy_display(display);
+        return 0;
+    }
+
+    // Fila de Eventos e Temporizador (60 FPS) - criados depois do menu
     ALLEGRO_EVENT_QUEUE* fila_eventos = al_create_event_queue();
     ALLEGRO_TIMER* timer = al_create_timer(1.0 / 60.0);
 
