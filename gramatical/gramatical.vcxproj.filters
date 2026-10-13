@@ -21,13 +21,19 @@
     <ClCompile Include="input.c">
       <Filter>Arquivos de Origem</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
+    <ClCompile Include="menu.c">
+      <Filter>Arquivos de Origem</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="input.h">
       <Filter>Arquivos de Origem</Filter>
     </ClInclude>
+    <ClInclude Include="menu.h">
+      <Filter>Arquivos de Origem</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>
