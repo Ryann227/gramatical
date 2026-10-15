@@ -155,10 +155,13 @@
     <ClCompile Include="gramatical.c" />
     <ClCompile Include="input.c" />
     <ClCompile Include="menu.c" />
+    <ClCompile Include="player.c" />
+    <ClCompile Include="sprites.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="input.h" />
     <ClInclude Include="menu.h" />
+    <ClInclude Include="player.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

@@ -26,7 +26,7 @@ bool menu_executar(ALLEGRO_DISPLAY* janela)
     al_register_event_source(fila, al_get_mouse_event_source());
     al_register_event_source(fila, al_get_keyboard_event_source());
 
-    /* Botao Jogar: centralizado, na parte de baixo da tela */
+   
     const float bw = 260, bh = 70;
     const float bx = (largura - bw) / 2.0f;
     const float by = altura * 0.85f;
@@ -36,7 +36,7 @@ bool menu_executar(ALLEGRO_DISPLAY* janela)
     bool rodando = true;
 
     while (rodando) {
-        /* Desenha */
+       
         al_draw_scaled_bitmap(fundo, 0, 0,
             (float)al_get_bitmap_width(fundo),
             (float)al_get_bitmap_height(fundo),
@@ -56,7 +56,7 @@ bool menu_executar(ALLEGRO_DISPLAY* janela)
 
         al_flip_display();
 
-        /* Trata eventos */
+        //trata eventos de input 
         ALLEGRO_EVENT ev;
         while (al_get_next_event(fila, &ev)) {
             if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
