@@ -82,6 +82,21 @@
     <Allegro_AddonFont>true</Allegro_AddonFont>
     <Allegro_AddonColor>true</Allegro_AddonColor>
     <Allegro_AddonVideo>true</Allegro_AddonVideo>
+    <Allegro_LibraryType>DynamicDebug</Allegro_LibraryType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Allegro_AddonImage>true</Allegro_AddonImage>
+    <Allegro_AddonTTF>true</Allegro_AddonTTF>
+    <Allegro_AddonPrimitives>true</Allegro_AddonPrimitives>
+    <Allegro_AddonAudio>true</Allegro_AddonAudio>
+    <Allegro_AddonAcodec>true</Allegro_AddonAcodec>
+    <Allegro_AddonPhysfs>true</Allegro_AddonPhysfs>
+    <Allegro_AddonDialog>true</Allegro_AddonDialog>
+    <Allegro_AddonMemfile>true</Allegro_AddonMemfile>
+    <Allegro_AddonFont>true</Allegro_AddonFont>
+    <Allegro_AddonColor>true</Allegro_AddonColor>
+    <Allegro_AddonVideo>true</Allegro_AddonVideo>
+    <Allegro_LibraryType>DynamicDebug</Allegro_LibraryType>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -152,19 +167,16 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="gramatical.c" />
-    <ClCompile Include="input.c" />
-    <ClCompile Include="menu.c" />
-    <ClCompile Include="player.c" />
-    <ClCompile Include="sprites.c" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="input.h" />
-    <ClInclude Include="menu.h" />
-    <ClInclude Include="player.h" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\Downloads\gramatical-tower\gramatical-tower\logica.c" />
+    <ClCompile Include="..\..\..\..\..\Downloads\gramatical-tower\gramatical-tower\gramatical.c" />
+    <ClCompile Include="..\..\..\..\..\Downloads\gramatical-tower\gramatical-tower\render.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\..\Downloads\gramatical-tower\gramatical-tower\jogo.h" />
+    <ClInclude Include="..\..\..\..\..\Downloads\gramatical-tower\gramatical-tower\render.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
