@@ -17,9 +17,8 @@
  /* ------------------------------------------------------------------ */
  /* Acentos: o Visual Studio pode gravar os textos do código em Windows-1252
   * em vez de UTF-8. O Allegro só lê UTF-8 e PARA de desenhar no primeiro
-  * acento ("HISTÓRIA" vira "HIST"). A função u8() confere o texto: se já for
-  * UTF-8 válido, usa como está; se não, converte de Windows-1252 para UTF-8.
-  * Os #define logo abaixo fazem todo texto deste arquivo passar por ela.   */
+  * acento. A função u8() confere o texto: se já for UTF-8 válido, usa como
+  * está; se não, converte de Windows-1252 para UTF-8.                      */
   /* ------------------------------------------------------------------ */
 static int utf8_valido(const char* s)
 {
@@ -42,7 +41,7 @@ static int utf8_valido(const char* s)
 
 static const char* u8(const char* s)
 {
-    static char bufs[4][512];            /* vários buffers: usos seguidos não se atropelam */
+    static char bufs[4][512];
     static int usado = 0;
     char* dst;
     int i, n = 0;
@@ -55,7 +54,7 @@ static const char* u8(const char* s)
         if (ch < 0x80) {
             dst[n++] = (char)ch;
         }
-        else {                         /* Latin-1/Windows-1252 -> UTF-8 (2 bytes) */
+        else {
             dst[n++] = (char)(0xC0 | (ch >> 6));
             dst[n++] = (char)(0x80 | (ch & 0x3F));
         }
@@ -75,8 +74,6 @@ static const char* u8(const char* s)
 
 static ALLEGRO_COLOR C(int r, int g, int b) { return al_map_rgb(r, g, b); }
 
-/* Cor com transparência. O Allegro 5 usa alfa pré-multiplicado por padrão,
- * então multiplicamos RGB pelo alfa antes de criar a cor. */
 static ALLEGRO_COLOR CA(int r, int g, int b, int a)
 {
     return al_map_rgba(r * a / 255, g * a / 255, b * a / 255, a);
@@ -89,6 +86,28 @@ static ALLEGRO_COLOR cor_classe(int cl)
     case CL_ADJETIVO:    return C(58, 124, 220);
     case CL_VERBO:       return C(64, 176, 88);
     default:             return C(138, 88, 204);
+    }
+}
+
+static ALLEGRO_COLOR cor_rank(int r)
+{
+    switch (r) {
+    case RANK_S: return C(255, 226, 120);
+    case RANK_A: return C(160, 235, 160);
+    case RANK_B: return C(140, 200, 255);
+    case RANK_C: return C(230, 200, 150);
+    default:     return C(215, 145, 145);
+    }
+}
+
+static ALLEGRO_COLOR cor_inimigo(int tipo)
+{
+    switch (tipo) {
+    case INIM_MORCEGO:  return C(122, 66, 176);
+    case INIM_GOLEM:    return C(104, 100, 116);
+    case INIM_ESPECTRO: return C(86, 158, 186);
+    case INIM_CHEFE:    return C(196, 58, 92);
+    default:            return C(150, 72, 192);
     }
 }
 
@@ -200,10 +219,9 @@ static void desenha_tiles(const Jogo* j)
 
 static void desenha_tochas(const Jogo* j)
 {
-    static const int cols[] = { 9, 20, 42, 56, 65 };
     int i;
-    for (i = 0; i < 5; i++) {
-        float x = cols[i] * TILE + 16.0f, y = 14 * TILE - 26.0f;
+    for (i = 0; i < j->n_tochas; i++) {
+        float x = j->tochas[i], y = 14 * TILE - 26.0f;
         float f = sinf(j->tempo_anim * 9.0f + i * 1.7f);
         al_draw_filled_rectangle(x - 3, y, x + 3, y + 26, C(70, 50, 34));
         al_draw_filled_circle(x, y - 4, 22 + f * 2, CA(255, 150, 40, 40));
@@ -214,13 +232,19 @@ static void desenha_tochas(const Jogo* j)
 
 static void desenha_saida(const Jogo* j, const Fontes* f)
 {
-    float x = 67 * TILE, y = 14 * TILE - 64.0f;
+    float x = j->saida_x, y = j->saida_y;
     float pulso = 0.5f + 0.5f * sinf(j->tempo_anim * 3.0f);
-    al_draw_filled_circle(x + 16, y + 30, 46, CA(255, 210, 90, (int)(30 + pulso * 40)));
-    al_draw_filled_rounded_rectangle(x - 4, y, x + TILE + 4, y + 64, 14, 14, C(120, 90, 40));
+    int aberta = (j->derrotados >= j->n_inimigos);
+
+    al_draw_filled_circle(x + 16, y + 30, 46,
+        aberta ? CA(255, 210, 90, (int)(30 + pulso * 40)) : CA(180, 90, 90, 30));
+    al_draw_filled_rounded_rectangle(x - 4, y, x + TILE + 4, y + 64, 14, 14,
+        aberta ? C(120, 90, 40) : C(80, 60, 60));
     al_draw_filled_rounded_rectangle(x, y + 4, x + TILE, y + 64, 12, 12, C(18, 14, 30));
-    al_draw_filled_circle(x + 16, y + 38, 8, CA(255, 220, 120, (int)(90 + pulso * 120)));
-    texto_sombra(f->pequena, C(255, 225, 140), x + 16, y - 18, ALLEGRO_ALIGN_CENTRE, "SAÍDA");
+    al_draw_filled_circle(x + 16, y + 38, 8,
+        aberta ? CA(255, 220, 120, (int)(90 + pulso * 120)) : C(70, 40, 50));
+    texto_sombra(f->pequena, aberta ? C(255, 225, 140) : C(220, 150, 150),
+        x + 16, y - 18, ALLEGRO_ALIGN_CENTRE, aberta ? "SAÍDA" : "SELADA");
 }
 
 static void desenha_chips(const Palavra* p, const Fontes* f)
@@ -267,7 +291,7 @@ static void desenha_palavra(const Jogo* j, const Palavra* p, const Fontes* f)
             al_draw_filled_triangle(x + w + 12, y + h / 2, x + w + 4, y + h / 2 - 6, x + w + 4, y + h / 2 + 6, C(110, 230, 130));
         }
     }
-    else {                                     /* lava */
+    else if (p->tipo == PAL_LAVA) {            /* lava */
         if (!p->congelada) {
             al_draw_filled_rectangle(x, y, x + w, y + h, C(190, 56, 18));
             for (k = 0; k < 5; k++) {
@@ -279,14 +303,34 @@ static void desenha_palavra(const Jogo* j, const Palavra* p, const Fontes* f)
                 float by = y + 4 + fabsf(sinf(j->tempo_anim * 2.0f + k * 1.3f)) * 10;
                 al_draw_filled_circle(bx, by, 3, C(255, 190, 70));
             }
-            texto_sombra(f->normal, C(255, 235, 200), x + w / 2, centro_y(f->normal, y, h), ALLEGRO_ALIGN_CENTRE, p->texto);
+            texto_sombra(f->normal, C(255, 235, 200), x + w / 2, y + 18, ALLEGRO_ALIGN_CENTRE, p->texto);
         }
         else {
             al_draw_filled_rectangle(x, y, x + w, y + h, C(140, 205, 245));
             al_draw_rectangle(x + 1, y + 1, x + w - 1, y + h - 1, C(255, 255, 255), 2.0f);
             al_draw_line(x + 20, y + 10, x + 70, y + 60, CA(255, 255, 255, 130), 1.5f);
             al_draw_line(x + w - 40, y + 6, x + w - 90, y + 70, CA(255, 255, 255, 130), 1.5f);
-            texto(f->normal, C(20, 50, 100), x + w / 2, centro_y(f->normal, y, 32), ALLEGRO_ALIGN_CENTRE, p->texto);
+            texto(f->normal, C(20, 50, 100), x + w / 2, y + 18, ALLEGRO_ALIGN_CENTRE, p->texto);
+        }
+    }
+    else {                                     /* espinhos */
+        if (!p->congelada) {
+            al_draw_filled_rectangle(x, y + h - 6, x + w, y + h, C(58, 26, 30));
+            for (k = 0; k < 6; k++) {
+                float ix = x + 10 + k * (w - 20) / 5.0f;
+                al_draw_filled_triangle(ix - 8, y + h, ix + 8, y + h,
+                    ix, y + 2 + (k % 2) * 4, C(214, 62, 56));
+                al_draw_filled_triangle(ix - 3, y + h, ix + 3, y + h, ix, y + 9, C(255, 150, 130));
+            }
+            texto(f->pequena, C(255, 150, 140), x + w / 2, y - 22, ALLEGRO_ALIGN_CENTRE, p->texto);
+        }
+        else {
+            al_draw_filled_rounded_rectangle(x, y + 4, x + w, y + h, 4, 4, C(150, 210, 245));
+            al_draw_rounded_rectangle(x, y + 4, x + w, y + h, 4, 4, C(255, 255, 255), 1.5f);
+            for (k = 0; k < 4; k++)
+                al_draw_line(x + 12 + k * (w - 24) / 3.0f, y + 6,
+                    x + 4 + k * (w - 24) / 3.0f, y + h - 2, CA(255, 255, 255, 120), 1.0f);
+            texto(f->pequena, C(20, 50, 100), x + w / 2, y - 22, ALLEGRO_ALIGN_CENTRE, p->texto);
         }
     }
     if (p->brilho > 0.0f)
@@ -299,24 +343,68 @@ static void desenha_inimigo(const Jogo* j, const Inimigo* e, const Fontes* f)
     float x = e->x, y = e->y, w = e->w, h = e->h;
     float px = j->jog.x + j->jog.w / 2 - (x + w / 2);
     float olhar = (px > 0) ? 2.0f : -2.0f;
+    ALLEGRO_COLOR corpo = cor_inimigo(e->tipo);
     char rotulo[32];
     float tw, tx;
+    float raio = (e->tipo == INIM_GOLEM) ? 4.0f : 10.0f;
     int k;
 
-    for (k = 0; k < 3; k++) {                    /* perninhas de aranha-livro */
-        float ph = sinf(e->t * 8.0f + k * 1.6f) * 3.0f;
-        al_draw_line(x + 4, y + h - 8 + k * 3, x - 8, y + h + 2 + ph, C(70, 30, 100), 2.0f);
-        al_draw_line(x + w - 4, y + h - 8 + k * 3, x + w + 8, y + h + 2 - ph, C(70, 30, 100), 2.0f);
+    /* asas (morcego/chefe) e perninhas (livro) */
+    if (e->tipo == INIM_MORCEGO || e->tipo == INIM_CHEFE) {
+        float flap = sinf(e->t * 12.0f) * 8.0f;
+        al_draw_filled_triangle(x + 2, y + h * 0.35f, x - 22, y + h * 0.35f - flap,
+            x - 2, y + h * 0.9f, CA(90, 50, 130, 220));
+        al_draw_filled_triangle(x + w - 2, y + h * 0.35f, x + w + 22, y + h * 0.35f - flap,
+            x + w + 2, y + h * 0.9f, CA(90, 50, 130, 220));
     }
-    al_draw_filled_rounded_rectangle(x, y, x + w, y + h, 10, 10, C(150, 72, 192));
-    al_draw_rounded_rectangle(x, y, x + w, y + h, 10, 10, C(80, 36, 110), 2.0f);
-    al_draw_line(x + w / 2, y + 2, x + w / 2, y + h - 2, C(110, 50, 150), 2.0f);   /* lombada */
-    al_draw_filled_circle(x + 11, y + 14, 6, C(250, 250, 250));
-    al_draw_filled_circle(x + w - 11, y + 14, 6, C(250, 250, 250));
-    al_draw_filled_circle(x + 11 + olhar, y + 15, 3, C(30, 10, 40));
-    al_draw_filled_circle(x + w - 11 + olhar, y + 15, 3, C(30, 10, 40));
-    al_draw_line(x + 10, y + 26, x + w - 10, y + 26, C(60, 20, 80), 2.0f);
+    if (e->tipo == INIM_LIVRO) {
+        for (k = 0; k < 3; k++) {
+            float ph = sinf(e->t * 8.0f + k * 1.6f) * 3.0f;
+            al_draw_line(x + 4, y + h - 8 + k * 3, x - 8, y + h + 2 + ph, C(70, 30, 100), 2.0f);
+            al_draw_line(x + w - 4, y + h - 8 + k * 3, x + w + 8, y + h + 2 - ph, C(70, 30, 100), 2.0f);
+        }
+    }
+    if (e->tipo == INIM_GOLEM || e->tipo == INIM_CHEFE)
+        al_draw_filled_rectangle(x + 6, y + h - 2, x + w - 6, y + h + 6, C(40, 36, 44));
 
+    /* corpo */
+    if (e->tipo == INIM_ESPECTRO)
+        al_draw_filled_rounded_rectangle(x, y, x + w, y + h, raio, raio, CA(86, 158, 186, 195));
+    else
+        al_draw_filled_rounded_rectangle(x, y, x + w, y + h, raio, raio, corpo);
+    al_draw_rounded_rectangle(x, y, x + w, y + h, raio, raio, C(40, 24, 56), 2.0f);
+
+    if (e->tipo == INIM_LIVRO) {
+        al_draw_line(x + w / 2, y + 2, x + w / 2, y + h - 2, C(110, 50, 150), 2.0f);
+        al_draw_line(x + 10, y + 26, x + w - 10, y + 26, C(60, 20, 80), 2.0f);
+    }
+    else if (e->tipo == INIM_GOLEM) {
+        al_draw_line(x + 8, y + 10, x + 20, y + 24, C(60, 58, 70), 2.0f);
+        al_draw_line(x + 20, y + 24, x + 14, y + 38, C(60, 58, 70), 2.0f);
+        al_draw_line(x + w - 10, y + 14, x + w - 22, y + 30, C(60, 58, 70), 2.0f);
+        al_draw_filled_rectangle(x + 4, y + 4, x + w - 4, y + 10, C(78, 74, 88));
+    }
+    else if (e->tipo == INIM_ESPECTRO) {
+        for (k = 0; k < 3; k++)
+            al_draw_filled_circle(x + 6 + k * (w - 12) / 2.0f, y + h,
+                6, CA(86, 158, 186, 160));
+        al_draw_line(x + 8, y + h - 10, x + w - 8, y + h - 10, CA(230, 250, 255, 90), 1.5f);
+    }
+    else if (e->tipo == INIM_CHEFE) {
+        al_draw_filled_triangle(x + 6, y, x + 16, y - 14, x + 24, y, C(255, 210, 90));
+        al_draw_filled_triangle(x + w / 2 - 8, y, x + w / 2, y - 18, x + w / 2 + 8, y, C(255, 210, 90));
+        al_draw_filled_triangle(x + w - 24, y, x + w - 16, y - 14, x + w - 6, y, C(255, 210, 90));
+        al_draw_line(x + 10, y + 14, x + 24, y + 20, C(70, 20, 30), 2.5f);
+        al_draw_line(x + w - 10, y + 14, x + w - 24, y + 20, C(70, 20, 30), 2.5f);
+    }
+
+    /* olhos */
+    al_draw_filled_circle(x + 11, y + 16, 6, C(250, 250, 250));
+    al_draw_filled_circle(x + w - 11, y + 16, 6, C(250, 250, 250));
+    al_draw_filled_circle(x + 11 + olhar, y + 17, 3, C(30, 10, 40));
+    al_draw_filled_circle(x + w - 11 + olhar, y + 17, 3, C(30, 10, 40));
+
+    /* rótulo com a palavra corrompida */
     maiusculas(rotulo, sizeof(rotulo), e->texto);
     tw = (float)al_get_text_width((ALLEGRO_FONT*)f->pequena, rotulo);
     tx = x + w / 2 - tw / 2;
@@ -324,8 +412,19 @@ static void desenha_inimigo(const Jogo* j, const Inimigo* e, const Fontes* f)
     al_draw_rounded_rectangle(tx - 5, y - 20, tx + tw + 5, y - 4, 4, 4, C(200, 60, 60), 1.0f);
     texto(f->pequena, C(255, 100, 100), x + w / 2, y - 20, ALLEGRO_ALIGN_CENTRE, rotulo);
 
+    /* vida (só para golem e chefe) */
+    if (e->vida_max > 1) {
+        float bx0 = x + w / 2 - (e->vida_max * 9) / 2.0f;
+        for (k = 0; k < e->vida_max; k++) {
+            float bx = bx0 + k * 9;
+            al_draw_filled_rectangle(bx, y - 30, bx + 6, y - 25,
+                k < e->vida ? C(255, 90, 90) : C(60, 40, 50));
+        }
+    }
+
     if (e->flash > 0.0f)
-        al_draw_filled_rounded_rectangle(x, y, x + w, y + h, 10, 10, CA(255, 80, 80, (int)(e->flash / 0.45f * 200)));
+        al_draw_filled_rounded_rectangle(x, y, x + w, y + h, raio, raio,
+            CA(255, 80, 80, (int)(e->flash / 0.45f * 200)));
 }
 
 static void desenha_jogador(const Jogo* j)
@@ -339,18 +438,18 @@ static void desenha_jogador(const Jogo* j)
     if (p->invulneravel > 0.0f && ((int)(j->tempo_anim * 14.0f)) % 2) return;   /* piscar */
 
     pas = (p->no_chao && fabsf(p->vx) > 20.0f) ? sinf(j->tempo_anim * 16.0f) * 4.0f : 0.0f;
-    al_draw_line(cx - 4, p->y + p->h - 6, cx - 4 + pas, p->y + p->h, C(40, 30, 30), 3.0f);   /* pernas */
+    al_draw_line(cx - 4, p->y + p->h - 6, cx - 4 + pas, p->y + p->h, C(40, 30, 30), 3.0f);
     al_draw_line(cx + 4, p->y + p->h - 6, cx + 4 - pas, p->y + p->h, C(40, 30, 30), 3.0f);
-    al_draw_filled_rounded_rectangle(p->x, p->y + 10, p->x + p->w, p->y + p->h - 4, 4, 4, C(46, 70, 132));   /* capa */
-    al_draw_filled_rectangle(p->x + 2, p->y + 11, p->x + p->w - 2, p->y + 15, C(80, 120, 210));              /* cachecol */
-    al_draw_filled_circle(cx, p->y + 7, 7, C(240, 200, 160));                                                /* cabeça */
-    al_draw_filled_rectangle(cx - 7, p->y, cx + 7, p->y + 5, C(92, 60, 40));                                 /* cabelo */
-    al_draw_filled_circle(cx + 3 * p->olhando, p->y + 8, 1.5f, C(30, 20, 20));                               /* olho */
+    al_draw_filled_rounded_rectangle(p->x, p->y + 10, p->x + p->w, p->y + p->h - 4, 4, 4, C(46, 70, 132));
+    al_draw_filled_rectangle(p->x + 2, p->y + 11, p->x + p->w - 2, p->y + 15, C(80, 120, 210));
+    al_draw_filled_circle(cx, p->y + 7, 7, C(240, 200, 160));
+    al_draw_filled_rectangle(cx - 7, p->y, cx + 7, p->y + 5, C(92, 60, 40));
+    al_draw_filled_circle(cx + 3 * p->olhando, p->y + 8, 1.5f, C(30, 20, 20));
 
     if (len < 1.0f) { mx = (float)p->olhando; my = 0.0f; len = 1.0f; }
     hx = cx + 4 * p->olhando; hy = cy + 2;
     ponta_x = hx + mx / len * 18.0f; ponta_y = hy + my / len * 18.0f;
-    al_draw_line(hx, hy, ponta_x, ponta_y, C(150, 110, 70), 2.5f);                                            /* Pena Tinteiro */
+    al_draw_line(hx, hy, ponta_x, ponta_y, C(150, 110, 70), 2.5f);
     al_draw_filled_circle(ponta_x, ponta_y, 5, CA(120, 220, 255, 70));
     al_draw_filled_circle(ponta_x, ponta_y, 2.5f, C(190, 245, 255));
 }
@@ -362,8 +461,8 @@ static void desenha_jogador(const Jogo* j)
 static void desenha_hud(const Jogo* j, const Fontes* f)
 {
     const Jogador* p = &j->jog;
-    char buf[96];
-    int i;
+    char buf[128];
+    int i, r;
 
     /* Vidas e tinta */
     for (i = 0; i < 3; i++)
@@ -373,11 +472,22 @@ static void desenha_hud(const Jogo* j, const Fontes* f)
     al_draw_rectangle(14, 44, 164, 56, C(180, 190, 220), 1.5f);
     texto_sombra(f->pequena, C(220, 230, 255), 170, 42, ALLEGRO_ALIGN_LEFT, "tinta");
 
-    /* Progresso */
-    snprintf(buf, sizeof(buf), "Palavras restauradas: %d/%d", j->derrotados, j->n_inimigos);
+    /* Desafios da fase (embaixo das vidas) */
+    snprintf(buf, sizeof(buf), "Guardiões %d/%d", j->derrotados, j->n_inimigos);
+    texto_sombra(f->pequena, C(235, 225, 200), 14, 60, ALLEGRO_ALIGN_LEFT, buf);
+    snprintf(buf, sizeof(buf), "Desafios %d/%d", j->desafios, j->desafios_total);
+    texto_sombra(f->pequena, C(235, 225, 200), 14, 74, ALLEGRO_ALIGN_LEFT, buf);
+
+    /* Fase, pontos e rank ao vivo */
+    snprintf(buf, sizeof(buf), "Fase %d/%d - %s", j->fase + 1, N_FASES, NOME_FASE[j->fase]);
     texto_sombra(f->pequena, C(235, 225, 200), LARGURA_TELA - 14, 14, ALLEGRO_ALIGN_RIGHT, buf);
-    snprintf(buf, sizeof(buf), "Tempo: %d:%02d", (int)j->tempo_total / 60, (int)j->tempo_total % 60);
-    texto_sombra(f->pequena, C(235, 225, 200), LARGURA_TELA - 14, 32, ALLEGRO_ALIGN_RIGHT, buf);
+
+    snprintf(buf, sizeof(buf), "Pontos: %d", j->pontos);
+    texto_sombra(f->normal, C(255, 220, 130), LARGURA_TELA - 14, 30, ALLEGRO_ALIGN_RIGHT, buf);
+
+    r = jogo_rank(j);
+    snprintf(buf, sizeof(buf), "Rank %s", NOME_RANK[r]);
+    texto_sombra(f->pequena, cor_rank(r), LARGURA_TELA - 14, 56, ALLEGRO_ALIGN_RIGHT, buf);
 
     /* Barra de feitiços */
     for (i = 0; i < CL_TOTAL; i++) {
@@ -401,15 +511,14 @@ static void desenha_hud(const Jogo* j, const Fontes* f)
             : j->msg_cor == MSG_RUIM ? CA(255, 130, 120, a)
             : CA(240, 240, 240, a);
         float tw = (float)al_get_text_width((ALLEGRO_FONT*)f->normal, j->msg);
-        al_draw_filled_rounded_rectangle(LARGURA_TELA / 2 - tw / 2 - 12, 68, LARGURA_TELA / 2 + tw / 2 + 12, 96, 8, 8, CA(10, 10, 20, a * 170 / 255));
-        texto(f->normal, cor, LARGURA_TELA / 2, centro_y(f->normal, 68, 28), ALLEGRO_ALIGN_CENTRE, j->msg);
+        al_draw_filled_rounded_rectangle(LARGURA_TELA / 2 - tw / 2 - 12, 88, LARGURA_TELA / 2 + tw / 2 + 12, 116, 8, 8, CA(10, 10, 20, a * 170 / 255));
+        texto(f->normal, cor, LARGURA_TELA / 2, centro_y(f->normal, 88, 28), ALLEGRO_ALIGN_CENTRE, j->msg);
     }
 
     /* Painel ANÁLISE (feedback imediato depois de acertar um guardião) */
     if (j->analise.ativa) {
-        float x = LARGURA_TELA - 238, y = 108, w = 224, h = 122;
+        float x = LARGURA_TELA - 238, y = 128, w = 224, h = 122;
         int a = j->analise.tempo < 0.8f ? (int)(j->analise.tempo / 0.8f * 255) : 255;
-        float tw;
         al_draw_filled_rounded_rectangle(x, y, x + w, y + h, 6, 6, CA(232, 222, 196, a));
         al_draw_rounded_rectangle(x, y, x + w, y + h, 6, 6, CA(120, 90, 60, a), 2.0f);
         texto(f->normal, CA(70, 50, 30, a), x + w / 2, y + 6, ALLEGRO_ALIGN_CENTRE, "ANÁLISE");
@@ -417,10 +526,8 @@ static void desenha_hud(const Jogo* j, const Fontes* f)
         al_draw_filled_rounded_rectangle(x + 24, y + 38, x + w - 24, y + 66, 5, 5, CA(32, 56, 110, a));
         texto(f->normal, CA(240, 245, 255, a), x + w / 2, centro_y(f->normal, y + 38, 28), ALLEGRO_ALIGN_CENTRE, j->analise.texto);
         snprintf(buf, sizeof(buf), "%s", NOME_CLASSE[j->analise.classe]);
-        tw = (float)al_get_text_width((ALLEGRO_FONT*)f->normal, buf);
         al_draw_filled_circle(x + 24, y + 84, 7, cor_classe(j->analise.classe));
         texto(f->normal, CA(60, 40, 30, a), x + 38, y + 74, ALLEGRO_ALIGN_LEFT, buf);
-        (void)tw;
         snprintf(buf, sizeof(buf), "Função: %s", FUNCAO_CLASSE[j->analise.classe]);
         texto(f->pequena, CA(80, 60, 40, a), x + 24, y + 98, ALLEGRO_ALIGN_LEFT, buf);
     }
@@ -436,14 +543,21 @@ static void desenha_tooltip(const Jogo* j, const Fontes* f)
     if (tipo == ALVO_NENHUM || jogo_slot_em(j->mouse_x, j->mouse_y) >= 0) return;
 
     if (tipo == ALVO_INIMIGO) {
-        snprintf(buf, sizeof(buf), "\"%s\": qual é a classe?", j->inimigos[idx].texto);
+        const Inimigo* e = &j->inimigos[idx];
+        if (e->vida_max > 1)
+            snprintf(buf, sizeof(buf), "\"%s\": qual é a classe? (%d acertos)", e->texto, e->vida);
+        else
+            snprintf(buf, sizeof(buf), "\"%s\": qual é a classe?", e->texto);
     }
     else {
         const Palavra* p = &j->palavras[idx];
-        const char* estado = p->tipo == PAL_LAVA
-            ? (p->congelada ? "congelada" : "perigosa")
-            : (!p->materializada ? "dormente" : p->movendo ? (p->lenta ? "em movimento lento" : "em movimento")
-                : p->congelada ? "congelada" : "sólida");
+        const char* estado;
+        if (p->tipo == PAL_LAVA)          estado = p->congelada ? "congelada" : "perigosa";
+        else if (p->tipo == PAL_ESPINHO)  estado = p->congelada ? "desarmados" : "perigosos";
+        else if (!p->materializada)       estado = "dormente";
+        else if (p->movendo)              estado = p->lenta ? "em movimento lento" : "em movimento";
+        else if (p->congelada)            estado = "congelada";
+        else                              estado = "sólida";
         snprintf(buf, sizeof(buf), "\"%s\" (%s)", p->texto, estado);
     }
     if (!alcance) {
@@ -458,11 +572,23 @@ static void desenha_tooltip(const Jogo* j, const Fontes* f)
     texto(f->pequena, alcance ? C(255, 230, 150) : C(255, 140, 130), x, y, ALLEGRO_ALIGN_LEFT, buf);
 }
 
+/* Faixa "FASE 2: Corredor dos Ecos" ao trocar de fase. */
+static void desenha_aviso(const Jogo* j, const Fontes* f)
+{
+    int a;
+    float tw;
+    if (j->aviso_tempo <= 0.0f || !j->aviso[0]) return;
+    a = j->aviso_tempo < 0.7f ? (int)(j->aviso_tempo / 0.7f * 255) : 255;
+    tw = (float)al_get_text_width((ALLEGRO_FONT*)f->grande, j->aviso);
+    al_draw_filled_rounded_rectangle(LARGURA_TELA / 2 - tw / 2 - 26, 196,
+        LARGURA_TELA / 2 + tw / 2 + 26, 250, 12, 12, CA(12, 10, 22, a * 200 / 255));
+    texto_sombra(f->grande, CA(255, 225, 140, a), LARGURA_TELA / 2, 200, ALLEGRO_ALIGN_CENTRE, j->aviso);
+}
+
 /* ------------------------------------------------------------------ */
 /* Telas                                                               */
 /* ------------------------------------------------------------------ */
 
-/* Botão de menu: muda de cor quando o mouse está em cima. */
 static void botao(const Jogo* j, const Fontes* f, float x, float y, float w, float h, const char* t)
 {
     int sobre = j->mouse_x >= x && j->mouse_x <= x + w && j->mouse_y >= y && j->mouse_y <= y + h;
@@ -471,7 +597,6 @@ static void botao(const Jogo* j, const Fontes* f, float x, float y, float w, flo
     texto(f->normal, sobre ? C(255, 240, 170) : C(235, 225, 200), x + w / 2, centro_y(f->normal, y, h), ALLEGRO_ALIGN_CENTRE, t);
 }
 
-/* Fundo do menu: o menu.png esticado na tela. Sem imagem, usa cor lisa + título. */
 static void fundo_do_menu(const Fontes* f)
 {
     if (f->fundo_menu) {
@@ -480,7 +605,7 @@ static void fundo_do_menu(const Fontes* f)
             0, 0, LARGURA_TELA, ALTURA_TELA, 0);
     }
     else {
-        al_clear_to_color(C(16, 14, 24));      /* sem imagem: fundo liso (o título já vem no menu.png) */
+        al_clear_to_color(C(16, 14, 24));
     }
 }
 
@@ -491,53 +616,59 @@ static void tela_menu(const Jogo* j, const Fontes* f)
     botao(j, f, BTN_X, (float)BTN_Y(1), BTN_W, BTN_H, "HISTÓRIA");
 }
 
-/* Painel escuro sobre o fundo, usado nas telas História e Introdução. */
-static void painel(const Fontes* f, const char* titulo)
+static void painel(const Fontes* f, const char* titulo, float y1)
 {
     fundo_do_menu(f);
     al_draw_filled_rectangle(0, 0, LARGURA_TELA, ALTURA_TELA, CA(8, 8, 16, 170));
-    al_draw_filled_rounded_rectangle(130, 50, LARGURA_TELA - 130, 450, 14, 14, CA(24, 20, 34, 235));
-    al_draw_rounded_rectangle(130, 50, LARGURA_TELA - 130, 450, 14, 14, C(160, 140, 100), 2.0f);
-    texto_sombra(f->grande, C(255, 214, 120), LARGURA_TELA / 2.0f, 62, ALLEGRO_ALIGN_CENTRE, titulo);
+    al_draw_filled_rounded_rectangle(110, 40, LARGURA_TELA - 110, y1, 14, 14, CA(24, 20, 34, 235));
+    al_draw_rounded_rectangle(110, 40, LARGURA_TELA - 110, y1, 14, 14, C(160, 140, 100), 2.0f);
+    texto_sombra(f->grande, C(255, 214, 120), LARGURA_TELA / 2.0f, 50, ALLEGRO_ALIGN_CENTRE, titulo);
 }
 
 static void tela_historia(const Jogo* j, const Fontes* f)
 {
     ALLEGRO_FONT* fn = (ALLEGRO_FONT*)f->normal;
-    painel(f, "História");
-    al_draw_multiline_text(fn, C(230, 225, 240), 170, 140, LARGURA_TELA - 340, 26, ALLEGRO_ALIGN_LEFT,
+    painel(f, "História", 450);
+    al_draw_multiline_text(fn, C(230, 225, 240), 160, 130, LARGURA_TELA - 320, 26, ALLEGRO_ALIGN_LEFT,
         "Você controla Enoq, o último escriba real da biblioteca de Sintaxia. "
         "Um feitiço corrompeu as escrituras sagradas do reino, fazendo com que pontes "
         "desaparecessem, mecanismos travassem e criaturas surgissem a partir de palavras incompletas.");
-    al_draw_multiline_text(fn, C(230, 225, 240), 170, 270, LARGURA_TELA - 340, 26, ALLEGRO_ALIGN_LEFT,
-        "Use sua Pena Tinteiro para explorar as ruínas, recuperar os fragmentos gramaticais "
-        "e derrotar os guardiões corrompidos. Cada palavra tem um poder!");
+    al_draw_multiline_text(fn, C(230, 225, 240), 160, 260, LARGURA_TELA - 320, 26, ALLEGRO_ALIGN_LEFT,
+        "Quatro ruínas separam Enoq do Corruptor. Em cada uma, guardiões corrompidos bloqueiam "
+        "a saída: restaure todos eles com a classe gramatical certa para abrir o portal.");
     botao(j, f, SUB_VOLTAR_X_HIST, SUB_Y, SUB_W, SUB_H, "VOLTAR");
 }
 
-/* Introdução: aparece depois do JOGAR e explica os controles e as classes. */
 static void tela_intro(const Jogo* j, const Fontes* f)
 {
     static const char* classes[CL_TOTAL] = {
         "Substantivo: cria matéria (a palavra vira plataforma)",
-        "Adjetivo: altera a física (congela plataforma ou lava)",
+        "Adjetivo: altera a física (congela plataforma, lava ou espinhos)",
         "Verbo: ativa a dinâmica (a plataforma passa a se mover)",
         "Advérbio: ajusta a intensidade (move mais devagar)"
     };
     int i;
 
-    painel(f, "Como jogar");
-    texto(f->normal, C(230, 225, 240), 170, 125, ALLEGRO_ALIGN_LEFT, "Mover: A/D ou setas      Pular: W, seta para cima ou Espaço");
-    texto(f->normal, C(230, 225, 240), 170, 150, ALLEGRO_ALIGN_LEFT, "Escolher a classe: teclas 1 a 4, roda do mouse ou clique na barra");
-    texto(f->normal, C(230, 225, 240), 170, 175, ALLEGRO_ALIGN_LEFT, "Lançar o feitiço: clique esquerdo na palavra (alcance limitado)");
-    texto(f->normal, C(230, 225, 240), 170, 200, ALLEGRO_ALIGN_LEFT, "R: reiniciar a fase      ESC: voltar ao menu");
+    painel(f, "Como jogar", 456);
+    texto(f->normal, C(230, 225, 240), 150, 104, ALLEGRO_ALIGN_LEFT, "Mover: A/D ou setas      Pular: W, seta para cima ou Espaço");
+    texto(f->normal, C(230, 225, 240), 150, 128, ALLEGRO_ALIGN_LEFT, "Escolher a classe: teclas 1 a 4, roda do mouse ou clique na barra");
+    texto(f->normal, C(230, 225, 240), 150, 152, ALLEGRO_ALIGN_LEFT, "Lançar o feitiço: clique esquerdo na palavra (alcance limitado)");
+    texto(f->normal, C(230, 225, 240), 150, 176, ALLEGRO_ALIGN_LEFT, "R: reiniciar a partida      ESC: voltar ao menu");
 
     for (i = 0; i < CL_TOTAL; i++) {
-        desenha_icone(i, 184, 256.0f + i * 34, 13);
-        texto(f->normal, C(235, 225, 200), 210, 247.0f + i * 34, ALLEGRO_ALIGN_LEFT, classes[i]);
+        desenha_icone(i, 166, 216.0f + i * 30, 12);
+        texto(f->normal, C(235, 225, 200), 190, 208.0f + i * 30, ALLEGRO_ALIGN_LEFT, classes[i]);
     }
-    al_draw_multiline_text((ALLEGRO_FONT*)f->normal, C(255, 214, 120), 170, 392, LARGURA_TELA - 340, 24, ALLEGRO_ALIGN_LEFT,
-        "Guardiões: lance a classe gramatical certa na palavra para restaurá-la.");
+
+    al_draw_line(150, 344, LARGURA_TELA - 150, 344, CA(160, 140, 100, 120), 1.0f);
+    texto(f->pequena, C(255, 214, 120), 150, 352, ALLEGRO_ALIGN_LEFT,
+        "RANKING (não existe mais cronômetro): guardião restaurado +120 a +500, feitiço novo numa palavra +40,");
+    texto(f->pequena, C(255, 214, 120), 150, 372, ALLEGRO_ALIGN_LEFT,
+        "fase concluída +200 e +50 por vida. Classe errada -15, dano ou queda -40.");
+    texto(f->pequena, C(200, 230, 255), 150, 396, ALLEGRO_ALIGN_LEFT,
+        "No fim das 4 fases o rank vai de D (Rabisco) até S (Escriba Lendário). O recorde aparece no fim da partida.");
+    texto(f->pequena, C(255, 170, 160), 150, 420, ALLEGRO_ALIGN_LEFT,
+        "A saída de cada fase só abre com todos os guardiões restaurados!");
 
     botao(j, f, SUB_VOLTAR_X_INTRO, SUB_Y, SUB_W, SUB_H, "VOLTAR");
     botao(j, f, SUB_COMECAR_X, SUB_Y, SUB_W, SUB_H, "COMEÇAR");
@@ -546,22 +677,40 @@ static void tela_intro(const Jogo* j, const Fontes* f)
 static void tela_fim(const Jogo* j, const Fontes* f, int vitoria)
 {
     float cx = LARGURA_TELA / 2.0f;
-    char buf[96];
+    char buf[128];
+    int r = jogo_rank(j);
 
-    al_draw_filled_rectangle(0, 0, LARGURA_TELA, ALTURA_TELA, CA(8, 8, 16, 190));
+    al_draw_filled_rectangle(0, 0, LARGURA_TELA, ALTURA_TELA, CA(8, 8, 16, 205));
+
     if (vitoria) {
-        texto_sombra(f->grande, C(255, 214, 120), cx, 150, ALLEGRO_ALIGN_CENTRE, "Biblioteca restaurada!");
-        snprintf(buf, sizeof(buf), "Palavras restauradas: %d/%d", j->derrotados, j->n_inimigos);
-        texto(f->normal, C(230, 230, 240), cx, 240, ALLEGRO_ALIGN_CENTRE, buf);
-        snprintf(buf, sizeof(buf), "Tempo: %d:%02d    Vidas restantes: %d",
-            (int)j->tempo_total / 60, (int)j->tempo_total % 60, j->jog.vidas);
-        texto(f->normal, C(230, 230, 240), cx, 270, ALLEGRO_ALIGN_CENTRE, buf);
+        texto_sombra(f->grande, C(255, 214, 120), cx, 84, ALLEGRO_ALIGN_CENTRE, "Biblioteca restaurada!");
+        snprintf(buf, sizeof(buf), "Pontuação final: %d", j->pontos);
+        texto(f->normal, C(230, 230, 240), cx, 156, ALLEGRO_ALIGN_CENTRE, buf);
+        snprintf(buf, sizeof(buf), "Rank: %s", NOME_RANK[r]);
+        texto_sombra(f->normal, cor_rank(r), cx, 186, ALLEGRO_ALIGN_CENTRE, buf);
     }
     else {
-        texto_sombra(f->grande, C(255, 110, 100), cx, 150, ALLEGRO_ALIGN_CENTRE, "Você foi corrompido...");
-        texto(f->normal, C(230, 230, 240), cx, 240, ALLEGRO_ALIGN_CENTRE, "Lembre: cada palavra tem um poder!");
+        texto_sombra(f->grande, C(255, 110, 100), cx, 84, ALLEGRO_ALIGN_CENTRE, "Você foi corrompido...");
+        snprintf(buf, sizeof(buf), "Pontuação: %d", j->pontos);
+        texto(f->normal, C(230, 230, 240), cx, 156, ALLEGRO_ALIGN_CENTRE, buf);
+        snprintf(buf, sizeof(buf), "Rank parcial: %s", NOME_RANK[r]);
+        texto_sombra(f->normal, cor_rank(r), cx, 186, ALLEGRO_ALIGN_CENTRE, buf);
+        texto(f->normal, C(230, 230, 240), cx, 216, ALLEGRO_ALIGN_CENTRE,
+            "Lembre: cada palavra tem um poder!");
     }
-    texto_sombra(f->normal, C(255, 240, 160), cx, 360, ALLEGRO_ALIGN_CENTRE, "Pressione R para jogar de novo");
+
+    al_draw_multiline_text((ALLEGRO_FONT*)f->pequena, C(210, 205, 225), LARGURA_TELA / 2.0f, 250,
+        LARGURA_TELA - 360, 22, ALLEGRO_ALIGN_CENTRE, DESC_RANK[r]);
+
+    snprintf(buf, sizeof(buf), "Guardiões restaurados: %d/%d     Desafios: %d/%d",
+        j->derrotados, j->n_inimigos, j->desafios, j->desafios_total);
+    texto(f->pequena, C(235, 225, 200), cx, 316, ALLEGRO_ALIGN_CENTRE, buf);
+
+    snprintf(buf, sizeof(buf), "Recorde: %d pontos", j->recorde);
+    texto(f->pequena, C(255, 235, 180), cx, 338, ALLEGRO_ALIGN_CENTRE, buf);
+
+    texto_sombra(f->normal, C(255, 240, 160), cx, 390, ALLEGRO_ALIGN_CENTRE,
+        "R para jogar de novo     ESC para o menu");
 }
 
 /* ------------------------------------------------------------------ */
@@ -610,7 +759,10 @@ void render_jogo(const Jogo* j, const Fontes* f)
     al_use_transform(&t);
 
     desenha_hud(j, f);
-    if (j->tela == TELA_JOGANDO) desenha_tooltip(j, f);
+    if (j->tela == TELA_JOGANDO) {
+        desenha_tooltip(j, f);
+        desenha_aviso(j, f);
+    }
     if (j->tela == TELA_VITORIA) tela_fim(j, f, 1);
     if (j->tela == TELA_DERROTA) tela_fim(j, f, 0);
 }
