@@ -15,28 +15,25 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\Downloads\gramatical-tower\gramatical-tower\jogo.h">
-      <Filter>Arquivos de Origem</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\Downloads\gramatical-tower\gramatical-tower\render.h">
-      <Filter>Arquivos de Origem</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\..\..\Downloads\gramatical-tower\gramatical-tower\logica.c">
+    <ClCompile Include="gramatical.c">
       <Filter>Arquivos de Origem</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Downloads\gramatical-tower\gramatical-tower\gramatical.c">
+    <ClCompile Include="render.c">
       <Filter>Arquivos de Origem</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Downloads\gramatical-tower\gramatical-tower\render.c">
+    <ClCompile Include="logica.c">
       <Filter>Arquivos de Origem</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\..\Downloads\gramatical-tower\gramatical-tower\README.md">
+    <ClInclude Include="render.h">
       <Filter>Arquivos de Origem</Filter>
-    </None>
+    </ClInclude>
+    <ClInclude Include="jogo.h">
+      <Filter>Arquivos de Origem</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
 </Project>
